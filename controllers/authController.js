@@ -334,10 +334,14 @@ exports.register = async (req, res) => {
     });
 
     // insert data detail and update data member
+    const savePin = helper.hashPin(body.pin);
+
+    console.log("aaa", savePin);
     let query = [];
     const queryUpdateData = `UPDATE tb_members 
                             SET
                              token = '${token}',
+                             pin = '${savePin}',
                              update_at = '${moment().format(
                                "YYYY-MM-DD HH:mm:ss"
                              )}'

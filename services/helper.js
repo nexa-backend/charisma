@@ -3,6 +3,7 @@
 const { format } = require("util");
 const dotenv = require("dotenv");
 const moment = require("moment");
+const bcrypt = require("bcrypt");
 dotenv.config();
 
 const google = require("googleapis").google;
@@ -202,4 +203,10 @@ exports.sendEmailOTP = async (otp, email) => {
   } catch (err) {
     console.error("Error sending email: ", error);
   }
+};
+
+exports.hashPin = (pin) => {
+  const salt = bcrypt.genSaltSync(parseInt(process.env.SALT_ROUNDS));
+  const hash = bcrypt.hashSync(pin, salt);
+  return hash;
 };
