@@ -217,10 +217,10 @@ exports.validateOTP = async (req, res) => {
         "Berhasil, silahkan lengkapi data"
       );
     } else {
-      const token = {
+      const token = createToken({
         id: dataCheck[0].id,
         email: body.email,
-      };
+      });
 
       const queryUpdate = `UPDATE tb_members 
                           SET token = '${token}', update_at = '${thisTime}' 
