@@ -1,13 +1,15 @@
 "use strict";
 
-const authController = require("./controllers/authController");
+const auth = require("./controllers/authController");
+
+const authorize = require("./middlewares/authorize");
 
 module.exports = (app) => {
   /** Auth Controller */
-  app.route("/auth/login").post(authController.login);
-  app.route("/auth/register").post(authController.register);
-  app.route("/auth/otp").post(authController.validateOTP);
-  app.route("/auth/resend").post(authController.resendOTP);
+  app.route("/auth/login").post(auth.login);
+  app.route("/auth/register").post(auth.register);
+  app.route("/auth/otp").post(auth.validateOTP);
+  app.route("/auth/resend").post(auth.resendOTP);
 
   /** Home Controller */
 

@@ -31,16 +31,14 @@ async function query(sql, res = undefined) {
 
 async function query_transaksional(list_sql, res = undefined) {
   const client = await poolMain.connect();
-
+  let result = [];
   try {
     await client.query("BEGIN");
     await client.query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
 
-    let result = [];
     for (const sql of list_sql) {
       result.push(client.query(sql));
     }
-
     await Promise.all(result);
     await client.query("COMMIT");
   } catch (err) {
@@ -50,7 +48,6 @@ async function query_transaksional(list_sql, res = undefined) {
     await client.release();
     return "Error";
   }
-
   await client.release();
   return result;
 }

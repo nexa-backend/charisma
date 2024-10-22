@@ -48,7 +48,7 @@ exports.login = async (req, res) => {
     const isValid = helper.validEmail(body.email);
     if (isValid == false) return response.jsonBadRequest("Invalid email", res);
 
-    const queryGetMember = `SELECT m.id, m.email FROM members m WHERE m.email = '${body.email}' LIMIT 1`;
+    const queryGetMember = `SELECT m.id, m.email FROM tb_members m WHERE m.email = '${body.email}' LIMIT 1`;
 
     const dataMember = await koneksi.query(queryGetMember);
     if (!dataMember) {
@@ -58,7 +58,7 @@ exports.login = async (req, res) => {
     if (dataMember.length < 1) {
       // lempar ke halaman lengkapi
       if (accessToken) {
-        const queryInsertMember = `INSERT INTO members (email)
+        const queryInsertMember = `INSERT INTO tb_members (email)
                                   VALUES ('${body.email}'); `;
         const dataInsertMember = await koneksi.query(queryInsertMember);
 
@@ -83,7 +83,7 @@ exports.login = async (req, res) => {
           return response.jsonBadRequest("Failed", res, "Failed to send OTP");
         }
 
-        const queryInsertMember = `INSERT INTO members (email, otp, otp_expired )
+        const queryInsertMember = `INSERT INTO tb_members (email, otp, otp_expired )
                                   VALUES ('${
                                     body.email
                                   }', '${generateOTP}', '${moment()
@@ -116,7 +116,7 @@ exports.login = async (req, res) => {
           id: dataMember[0].id,
           email: dataMember[0].email,
         });
-        const queryUpdate = `UPDATE members
+        const queryUpdate = `UPDATE tb_members
                             SET token = '${token}', 
                             update_at = '${moment().format(
                               "YYYY-MM-DD HH:mm:ss"
@@ -142,7 +142,7 @@ exports.login = async (req, res) => {
           return response.jsonBadRequest("Failed", res, "Failed to send OTP");
         }
 
-        const queryUpdate = `UPDATE members
+        const queryUpdate = `UPDATE tb_members
                             SET otp = '${generateOTP}', 
                             otp_expired = '${moment()
                               .add(10, "minutes")
@@ -196,7 +196,7 @@ exports.validateOTP = async (req, res) => {
     const thisTime = moment().format("YYYY-MM-DD HH:mm:ss");
 
     const queryCheckOTP = `SELECT m.id, m.email, m.otp 
-                              FROM members m 
+                              FROM tb_members m 
                               WHERE m.email = '${body.email}' 
                               AND m.otp = '${body.otp}'
                               AND m.otp_expired > '${thisTime}'`;
@@ -207,7 +207,7 @@ exports.validateOTP = async (req, res) => {
       return response.jsonBadRequest("OTP salah atau sudah kadaluarsa", res);
     }
 
-    const queryCheckDetail = `SELECT md.id_member FROM member_details md WHERE md.id_member = '${dataCheck[0].id}'`;
+    const queryCheckDetail = `SELECT md.id_member FROM tb_member_details md WHERE md.id_member = '${dataCheck[0].id}'`;
     const dataCheckDetail = await koneksi.query(queryCheckDetail);
 
     if (dataCheckDetail.length < 1) {
@@ -222,7 +222,7 @@ exports.validateOTP = async (req, res) => {
         email: body.email,
       };
 
-      const queryUpdate = `UPDATE members 
+      const queryUpdate = `UPDATE tb_members 
                           SET token = '${token}', update_at = '${thisTime}' 
                           WHERE id = '${dataCheck[0].id}'`;
       const updateData = await koneksi.query(queryUpdate);
@@ -297,13 +297,14 @@ exports.resendOTP = async (req, res) => {
 exports.register = async (req, res) => {
   try {
     const body = {
-      email: req.body.email ? sanitasi.escapeHtmlPlus(req.body.email) : "",
-      accessToken: req.body.accessToken
-        ? sanitasi.escapeHtmlPlus(req.body.accessToken)
-        : "",
-      fcmId: req.body.fcmId ? req.body.fcmId : "",
-      name: req.body.name ? sanitasi.escapeHtmlPlus(req.body.name) : "",
-      phone: req.body.phone ? sanitasi.escapeHtmlPlus(req.body.phone) : "",
+      email: sanitasi.escapeHtmlPlus(req.body.email) ?? "",
+      name: sanitasi.escapeHtmlPlus(req.body.name) ?? "",
+      phone: sanitasi.escapeHtmlPlus(req.body.phone) ?? "",
+      birth_date: moment(req.body.birth_date).format("YYYY-MM-DD") ?? "",
+      gender: sanitasi.escapeHtmlPlus(req.body.gender) ?? "",
+      city: sanitasi.escapeHtmlPlus(req.body.city) ?? "",
+      job: sanitasi.escapeHtmlPlus(req.body.job) ?? "",
+      pin: sanitasi.escapeHtmlPlus(req.body.pin) ?? "",
     };
 
     for (const key in body) {
@@ -312,12 +313,55 @@ exports.register = async (req, res) => {
         return response.jsonBadRequest(`field ${key} harus di isi`, res);
       }
     }
+    let isValid = helper.validEmail(body.email);
+    if (isValid == false) return response.jsonBadRequest("Invalid email", res);
+    if (isNaN(body.pin)) return response.jsonBadRequest("Invalid pin", res);
 
-    if (body.email != "") {
-      let isValid = helper.validEmail(body.email);
-      if (isValid == false)
-        return response.jsonBadRequest("Invalid email", res);
+    //check email exist ?
+    const queryCheckMember = `SELECT m.id, m.email FROM tb_members m WHERE m.email = '${body.email}' LIMIT 1`;
+    const dataCheckMember = await koneksi.query(queryCheckMember);
+
+    if (!dataCheckMember || dataCheckMember < 1) {
+      return response.jsonBadRequest(
+        "Email belum terdaftar, silahkan kembali ke halaman awal",
+        res
+      );
     }
+
+    const token = createToken({
+      id: dataCheckMember[0].id,
+      email: dataCheckMember[0].email,
+    });
+
+    // insert data detail and update data member
+    let query = [];
+    const queryUpdateData = `UPDATE tb_members 
+                            SET
+                             token = '${token}',
+                             update_at = '${moment().format(
+                               "YYYY-MM-DD HH:mm:ss"
+                             )}'
+                            WHERE
+                             id = '${dataCheckMember[0].id}'`;
+    query.push(queryUpdateData);
+
+    const queryInsertData = `INSERT INTO tb_member_details (id_member,"name",phone, birth_date, gender,city,job)
+                              VALUES ('${dataCheckMember[0].id}', '${body.name}', '${body.phone}', '${body.birth_date}', '${body.gender}', '${body.city}', '${body.job}')`;
+    query.push(queryInsertData);
+
+    const data = await koneksi.query_transaksional(query);
+
+    if (data == "Error") {
+      return response.jsonBadRequest("Gagal melengkapi data member", res);
+    }
+
+    const dataResponse = {
+      email: body.email,
+      token: token,
+      status: "Login",
+    };
+
+    return response.jsonBerhasil(dataResponse, res, "Berhasil masuk");
   } catch (err) {
     res.status(500).json({
       status: "FAILED",
